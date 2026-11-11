@@ -1,0 +1,19 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# local data / exports
+knowledge-base/
+*.pdf
+.n8n/
+n8n-data/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
