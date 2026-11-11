@@ -1,0 +1,459 @@
+{
+  "name": "Project 1: Knowledge Base Ingestion",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1856,
+        -272
+      ],
+      "id": "de6eb627-1abe-44bd-be13-e870999289ef",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst now = new Date().toISOString();\n\nfunction detectCategory(filename) {\n  const name = (filename || \"\").toLowerCase();\n  const tokens = name.split(/[^a-z0-9]+/);\n  // short keywords (hr, seo, rag, crm) must match a whole word, otherwise \"through\" => HR, \"storage\" => RAG\n  const has = (k) => k.length <= 3 ? tokens.includes(k) : name.includes(k);\n\n  if (has(\"crm\")) return \"CRM\";\n  if (has(\"sales\")) return \"Sales\";\n  if (has(\"finance\")) return \"Finance\";\n  if (has(\"invoice\")) return \"Invoice\";\n  if (has(\"hr\")) return \"HR\";\n  if (has(\"resume\")) return \"HR\";\n  if (has(\"youtube\")) return \"YouTube\";\n  if (has(\"seo\")) return \"SEO\";\n  if (has(\"marketing\")) return \"Marketing\";\n  if (has(\"rag\")) return \"RAG\";\n  if (has(\"chatbot\")) return \"RAG\";\n  if (has(\"health\")) return \"Healthcare\";\n  if (has(\"medical\")) return \"Healthcare\";\n  if (has(\"real_estate\")) return \"Real Estate\";\n  if (has(\"property\")) return \"Real Estate\";\n  if (has(\"legal\")) return \"Legal\";\n  if (has(\"contract\")) return \"Legal\";\n  if (has(\"education\")) return \"Education\";\n  if (has(\"student\")) return \"Education\";\n  if (has(\"manufacturing\")) return \"Manufacturing\";\n  if (has(\"logistics\")) return \"Logistics\";\n  if (has(\"supply\")) return \"Logistics\";\n  if (has(\"bank\")) return \"Banking\";\n  if (has(\"cyber\")) return \"Cybersecurity\";\n  if (has(\"hotel\")) return \"Hospitality\";\n  if (has(\"hospitality\")) return \"Hospitality\";\n  if (has(\"telecom\")) return \"Telecom\";\n  if (has(\"e-commerce\")) return \"E-commerce\";\n  if (has(\"shopify\")) return \"E-commerce\";\n  if (has(\"woocommerce\")) return \"E-commerce\";\n\n  return \"General AI Automation\";\n}\n\nreturn items.map(item => {\n\n  const filename = item.json.filename || \"Unknown.pdf\";\n  const workflowName = filename.replace(/\\.pdf$/i, \"\");\n  const category = detectCategory(filename);\n\n  return {\n    json: {\n\n      // ==========================\n      // Identity\n      // ==========================\n      document_id: `${workflowName}_chunk_${item.json.chunk_index}`,\n      workflow_name: workflowName,\n      project_name: workflowName,\n      filename: filename,\n\n      // ==========================\n      // Classification\n      // ==========================\n      category: category,\n      niche: category,\n\n      // ==========================\n      // Search Metadata\n      // ==========================\n      tags: [],\n      keywords: [],\n      status: \"active\",\n\n      // ==========================\n      // Source Information\n      // ==========================\n      source: \"Workflow Knowledge Base\",\n      document_type: \"workflow\",\n      language: \"en\",\n\n      // ==========================\n      // Chunk Information\n      // ==========================\n      chunk_index: item.json.chunk_index,\n      total_chunks: item.json.total_chunks,\n      chunk_length: item.json.chunk_length,\n\n      // ==========================\n      // Workflow Content\n      // ==========================\n      text: item.json.text,\n\n      // ==========================\n      // Embedding Information\n      // ==========================\n      embedding_model: \"models/gemini-embedding-001\",\n      vector_provider: \"Google Gemini\",\n\n      // ==========================\n      // Future Market Intelligence\n      // (Workflow 3 will update these)\n      // ==========================\n      project_rate: null,\n      fiverr_demand: null,\n      upwork_demand: null,\n      business_value: null,\n      difficulty: null,\n      estimated_hours: null,\n      automation_level: null,\n      market_reason: null,\n\n      // ==========================\n      // Version Information\n      // ==========================\n      version: \"3.0\",\n      metadata_version: \"3.0\",\n\n      created_at: now,\n      updated_at: now\n\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -272
+      ],
+      "id": "27ddce74-cc05-454b-8f64-43f4def8a552",
+      "name": "Code (Smart Metadata)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunkSize = 1000;\nconst overlap = 200;\nconst output = [];\n\nfor (const item of $input.all()) {\n  const text = item.json.text || \"\";\n  const filename = item.json.filename || \"Unknown.pdf\";\n  const fileChunks = [];\n  let start = 0;\n  let chunkIndex = 1;\n\n  while (start < text.length) {\n    const chunk = text.slice(start, start + chunkSize);\n    fileChunks.push({ filename, chunk_index: chunkIndex, chunk_length: chunk.length, text: chunk });\n    if (start + chunkSize >= text.length) break; // last chunk reached: don't emit a tiny duplicate tail\n    start += chunkSize - overlap;\n    chunkIndex++;\n  }\n\n  // total_chunks is now exact (the old formula was an estimate)\n  for (const c of fileChunks) output.push({ json: { ...c, total_chunks: fileChunks.length } });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -272
+      ],
+      "id": "c00802d9-910b-4914-b98e-7c958bf06ca6",
+      "name": "Code Chunk"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n\n  let text = item.json.text || \"\";\n\n  text = text.replace(/\\s+/g, \" \");\n  text = text.replace(/\\n\\s*\\n/g, \"\\n\");\n  text = text.trim();\n\n  return {\n    json: {\n      filename: item.json.filename,\n      text\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        -272
+      ],
+      "id": "a1775fe7-d827-42f1-9102-2e38b03c297e",
+      "name": "Code Clean"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1472,
+        -352
+      ],
+      "id": "0370d473-8e62-4fcb-b793-004c837758f3",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/knowledge-base/workflows/*.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1680,
+        -272
+      ],
+      "id": "56c43755-2d7e-458b-81f9-be30f89e2390",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        96,
+        -272
+      ],
+      "id": "923909f3-6977-4561-b6ac-7336e94ec3b1",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const vector = $json.embedding?.values;\n\nif (!vector || !Array.isArray(vector)) {\n  throw new Error(\"Embedding vector not found.\");\n}\n\n// Get ALL metadata from previous node\nconst metadata = $(\"Code (Build Gemini Payload)\").item.json;\n\n// Remove Gemini request payload\nconst output = { ...metadata };\ndelete output.payload;\n\n// Add vector information\noutput.vector = vector;\noutput.vector_dimension = vector.length;\n\nreturn {\n  json: output\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -272
+      ],
+      "id": "5b5dc496-c7cb-42d5-91c7-d3744a300b92",
+      "name": "Code (Extract Vector)"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://YOUR-CLUSTER-ID.YOUR-REGION.cloud.qdrant.io:6333/collections/workflow-knowledge-basev-2/points",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "wait",
+              "value": "true"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        -272
+      ],
+      "id": "92b3202c-30a0-4648-a66a-601619c024d1",
+      "name": "Qdrant Upsert",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Qdrant API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    ...$json,\n\n    payload: {\n      model: \"models/gemini-embedding-001\",\n      content: {\n        parts: [\n          {\n            text: $json.text\n          }\n        ]\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -256
+      ],
+      "id": "b2a2a15b-fb4c-47d9-8e83-564ae51f5e77",
+      "name": "Code (Build Gemini Payload)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Deterministic UUID from document_id.\n// (Old logic summed char codes -> \"x_chunk_12\" and \"x_chunk_21\" collided and silently overwrote each other.)\nfunction hash32(str, seed) {\n  let h = seed >>> 0;\n  for (let i = 0; i < str.length; i++) {\n    h = Math.imul(h ^ str.charCodeAt(i), 2654435761);\n    h ^= h >>> 15;\n  }\n  return h >>> 0;\n}\nconst s = String($json.document_id);\nconst hex = [1, 2, 3, 4].map(seed => hash32(s, seed).toString(16).padStart(8, \"0\")).join(\"\");\nconst pointId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;\n\n// Copy all metadata except vector\nconst payload = { ...$json };\ndelete payload.vector;\n\n// Nested copy so n8n's Qdrant Vector Store node (Project 14) can read metadata.workflow_name\npayload.metadata = {\n  workflow_name: payload.workflow_name,\n  workflow_category: payload.category,\n  category: payload.category,\n  filename: payload.filename,\n  document_id: payload.document_id,\n  chunk_index: payload.chunk_index\n};\n\nreturn {\n  json: {\n    payload: {\n      points: [{ id: pointId, vector: $json.vector, payload }]\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -272
+      ],
+      "id": "90c77319-13b9-49e9-8df8-31c38eafa452",
+      "name": "Code (Build Qdrant Payload)"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1152,
+        -272
+      ],
+      "id": "951c1547-e4e3-4bae-9cb3-a7491dbfc31c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      filename: item.binary.data.fileName\n    },\n    binary: item.binary\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1472,
+        -192
+      ],
+      "id": "56645772-e615-494c-899e-42ad53b98174",
+      "name": "Code (Save Filename)"
+    },
+    {
+      "parameters": {
+        "content": "🔄 Workflow Steps\n\n1. Read PDF Files\n\nLoad all workflow PDFs from the local knowledge-base directory.\n\n2. Preserve File Metadata\n\nSave the original filename before PDF extraction to maintain document traceability.\n\n3. Extract PDF Content\n\nConvert PDF documents into plain text.\n\n4. Clean & Normalize Text\n\nRemove unnecessary whitespace and normalize formatting.\n\n5. Intelligent Chunking\n\nSplit large documents into overlapping chunks for better semantic retrieval.\n\n6. Smart Metadata Generation\n\nGenerate workflow metadata including:\nWorkflow Name\nCategory\nDocument ID\nChunk Information\nVersion\nSource\nLanguage\n\n7. Gemini Embedding Generation\n\nGenerate high-quality vector embeddings using the Gemini Embedding API.\n\n8. Extract Embedding Vector\n\nExtract embedding vectors and combine them with workflow metadata.\n\n9. Build Qdrant Payload\n\nPrepare a valid payload containing:\nDeterministic UUID Point ID\nEmbedding Vector\nComplete Metadata\n\n10. Store in Qdrant\n\nUpsert vectors into the Qdrant Vector Database to create the searchable knowledge base.",
+        "height": 1056,
+        "width": 2880
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1856,
+        -624
+      ],
+      "typeVersion": 1,
+      "id": "9b2ee4b5-da3c-426c-b63f-dc2a3cbdf7d6",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -304,
+        -272
+      ],
+      "id": "500daf12-b34a-45e4-9f84-0b58fef18f9f",
+      "name": "Loop Over Items (Batch = 5)"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        -272
+      ],
+      "id": "b6cec7c8-827d-4bbe-9f25-43c5cbeb95f7",
+      "name": "Wait"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Chunk": {
+      "main": [
+        [
+          {
+            "node": "Code (Smart Metadata)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Clean": {
+      "main": [
+        [
+          {
+            "node": "Code Chunk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Code (Save Filename)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Smart Metadata)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items (Batch = 5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Vector)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Vector)": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Qdrant Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Gemini Payload)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Qdrant Payload)": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code Clean",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Save Filename)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Qdrant Upsert": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items (Batch = 5)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code (Build Gemini Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items (Batch = 5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

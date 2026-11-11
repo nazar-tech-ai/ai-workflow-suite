@@ -1,0 +1,1011 @@
+{
+  "name": "Project 21 – LinkedIn Profile Enrichment Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "fc9d2a3f-8515-49af-a09f-acece766419c",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -64,
+        -192
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-col",
+              "name": "linkedin_url_column",
+              "type": "string",
+              "value": "LinkedIn URL"
+            },
+            {
+              "id": "cfg-actor",
+              "name": "apify_actor_id",
+              "type": "string",
+              "value": "yZnhB5JewWf9xSmoM"
+            },
+            {
+              "id": "cfg-find",
+              "name": "find_contacts",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "cfg-batch",
+              "name": "batch_size",
+              "type": "number",
+              "value": 1
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "22c514fa-eb05-417c-a71c-2cdb1c98b33a",
+      "name": "Configuration",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        240,
+        -192
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "b2ba5c41-4d1a-41ac-90c6-6506947c7dbd",
+      "name": "Get profiles to enrich",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        512,
+        -192
+      ],
+      "typeVersion": 4.7,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/{{ $('Configuration').first().json.apify_actor_id }}/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"urls\": [\n    {\n      \"url\": {{ JSON.stringify($json[$('Configuration').first().json.linkedin_url_column]) }}\n    }\n  ],\n  \"findContacts\": {{ $('Configuration').first().json.find_contacts }},\n  \"findContacts.contactCompassToken\": \"\"\n}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "de8b18a5-155f-4408-8f8b-cc9a8d136dc6",
+      "name": "Fetch LinkedIn profile (Apify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1040,
+        -176
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "batchSize": "={{ $('Configuration').first().json.batch_size }}",
+        "options": {}
+      },
+      "id": "d3cca5ec-7d06-4a8b-8b1a-aaa1693e53d3",
+      "name": "Loop over profiles",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        784,
+        -192
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "LinkedIn URL": "={{ $json['LinkedIn URL'] }}",
+            "First name": "={{ $json['First name'] }}",
+            "Last name": "={{ $json['Last name'] }}",
+            "Headline": "={{ $json.Headline }}",
+            "Job title": "={{ $json['Job title'] }}",
+            "Company name": "={{ $json['Company name'] }}",
+            "Country": "={{ $json.Country }}",
+            "City": "={{ $json.City }}",
+            "Summary": "={{ $json.Summary }}",
+            "Skills": "={{ $json.Skills }}",
+            "Positions": "={{ $json.Positions }}",
+            "Educations": "={{ $json.Educations }}",
+            "Certifications": "={{ $json.Certifications }}",
+            "created": "={{ $json.created }}",
+            "trackingId": "={{ $json.trackingId }}",
+            "firstName": "={{ $json.firstName }}",
+            "lastName": "={{ $json.lastName }}",
+            "pronoun": "={{ $json.pronoun }}",
+            "versionTag": "={{ $json.versionTag }}",
+            "headline": "={{ $json.headline }}",
+            "publicIdentifier": "={{ $json.publicIdentifier }}",
+            "creator": "={{ $json.creator }}",
+            "influencer": "={{ $json.influencer }}",
+            "premium": "={{ $json.premium }}",
+            "connectionType": "={{ $json.connectionType }}",
+            "birthDate": "={{ $json.birthDate }}",
+            "profileId": "={{ $json.profileId }}",
+            "pictureUrl": "={{ $json.pictureUrl }}",
+            "coverImageUrl": "={{ $json.coverImageUrl }}",
+            "countryCode": "={{ $json.countryCode }}",
+            "geoUrn": "={{ $json.geoUrn }}",
+            "geoLocationName": "={{ $json.geoLocationName }}",
+            "geoCountryName": "={{ $json.geoCountryName }}",
+            "jobTitle": "={{ $json.jobTitle }}",
+            "positions": "={{ $json.positions }}",
+            "educations": "={{ $json.educations }}",
+            "certifications": "={{ $json.certifications }}",
+            "courses": "={{ $json.courses }}",
+            "honors": "={{ $json.honors }}",
+            "languages": "={{ $json.languages }}",
+            "volunteerExperiences": "={{ $json.volunteerExperiences }}",
+            "projects": "={{ $json.projects }}",
+            "publications": "={{ $json.publications }}",
+            "patents": "={{ $json.patents }}",
+            "testScores": "={{ $json.testScores }}",
+            "organizations": "={{ $json.organizations }}",
+            "volunteerCauses": "={{ $json.volunteerCauses }}",
+            "companyName": "={{ $json.companyName }}",
+            "companyPublicId": "={{ $json.companyPublicId }}",
+            "companyLinkedinUrl": "={{ $json.companyLinkedinUrl }}",
+            "currentCompany": "={{ $json.currentCompany }}",
+            "followerCount": "={{ $json.followerCount }}",
+            "mutualConnections": "={{ $json.mutualConnections }}",
+            "isVerified": "={{ $json.isVerified }}",
+            "verificationBadge": "={{ $json.verificationBadge }}",
+            "availablePremiumFeatures": "={{ $json.availablePremiumFeatures }}",
+            "pronunciationUrl": "={{ $json.pronunciationUrl }}",
+            "connectionsCount": "={{ $json.connectionsCount }}",
+            "skills": "={{ $json.skills }}",
+            "inputUrl": "={{ $json.inputUrl }}",
+            "id": "={{ $('Get profiles to enrich').item.json.row_number }}"
+          },
+          "matchingColumns": [
+            "LinkedIn URL"
+          ],
+          "schema": [
+            {
+              "id": "LinkedIn URL",
+              "displayName": "LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "First name",
+              "displayName": "First name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last name",
+              "displayName": "Last name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Headline",
+              "displayName": "Headline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job title",
+              "displayName": "Job title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company name",
+              "displayName": "Company name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Positions",
+              "displayName": "Positions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Educations",
+              "displayName": "Educations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Certifications",
+              "displayName": "Certifications",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created",
+              "displayName": "created",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "trackingId",
+              "displayName": "trackingId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "firstName",
+              "displayName": "firstName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lastName",
+              "displayName": "lastName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pronoun",
+              "displayName": "pronoun",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "versionTag",
+              "displayName": "versionTag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "headline",
+              "displayName": "headline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publicIdentifier",
+              "displayName": "publicIdentifier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "creator",
+              "displayName": "creator",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "influencer",
+              "displayName": "influencer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "premium",
+              "displayName": "premium",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "connectionType",
+              "displayName": "connectionType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "birthDate",
+              "displayName": "birthDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "profileId",
+              "displayName": "profileId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pictureUrl",
+              "displayName": "pictureUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "coverImageUrl",
+              "displayName": "coverImageUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "countryCode",
+              "displayName": "countryCode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "geoUrn",
+              "displayName": "geoUrn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "geoLocationName",
+              "displayName": "geoLocationName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "geoCountryName",
+              "displayName": "geoCountryName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jobTitle",
+              "displayName": "jobTitle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "positions",
+              "displayName": "positions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "educations",
+              "displayName": "educations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "certifications",
+              "displayName": "certifications",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "courses",
+              "displayName": "courses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "honors",
+              "displayName": "honors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "languages",
+              "displayName": "languages",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "volunteerExperiences",
+              "displayName": "volunteerExperiences",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "projects",
+              "displayName": "projects",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publications",
+              "displayName": "publications",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "patents",
+              "displayName": "patents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "testScores",
+              "displayName": "testScores",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organizations",
+              "displayName": "organizations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "volunteerCauses",
+              "displayName": "volunteerCauses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyName",
+              "displayName": "companyName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyPublicId",
+              "displayName": "companyPublicId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyLinkedinUrl",
+              "displayName": "companyLinkedinUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currentCompany",
+              "displayName": "currentCompany",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "followerCount",
+              "displayName": "followerCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mutualConnections",
+              "displayName": "mutualConnections",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isVerified",
+              "displayName": "isVerified",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "verificationBadge",
+              "displayName": "verificationBadge",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "availablePremiumFeatures",
+              "displayName": "availablePremiumFeatures",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pronunciationUrl",
+              "displayName": "pronunciationUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "connectionsCount",
+              "displayName": "connectionsCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "skills",
+              "displayName": "skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inputUrl",
+              "displayName": "inputUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        -176
+      ],
+      "id": "1f85f3bc-80d1-4867-81bd-d4ba1157ea88",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Runs for EVERY item of the batch (old code used $input.first() and dropped the rest when batch_size > 1).\nconst urlCol = $('Configuration').first().json.linkedin_url_column;\nconst sheetRows = $('Loop over profiles').all();\nconst out = [];\n\n$input.all().forEach((it, i) => {\n  const item = it.json || {};\n  // Match the sheet row by the URL stored in the sheet (Apify may return a normalised URL that would not match)\n  const sheetUrl = (sheetRows[i] && sheetRows[i].json[urlCol]) || item.inputUrl || \"\";\n  const found = !item.error && (item.firstName || item.publicIdentifier || item.headline);\n\n  if (!found) {\n    out.push({ json: { __ok: false, \"LinkedIn URL\": sheetUrl, error: item.error?.message || item.error || \"Empty Apify result\" } });\n    return;\n  }\n\n  const mapped = {\n\n      // Original sheet columns\n      \"First name\": item.firstName ?? \"\",\n      \"Last name\": item.lastName ?? \"\",\n      \"Headline\": item.headline ?? \"\",\n      \"Job title\": item.jobTitle ?? \"\",\n      \"Company name\": item.companyName ?? \"\",\n      \"Country\": item.geoCountryName ?? \"\",\n      \"City\": item.geoLocationName ?? \"\",\n      \"Summary\": item.summary ?? \"\",\n      \"Skills\": JSON.stringify(item.skills ?? []),\n      \"Positions\": JSON.stringify(item.positions ?? []),\n      \"Educations\": JSON.stringify(item.educations ?? []),\n      \"Certifications\": JSON.stringify(item.certifications ?? []),\n\n      // Remaining Apify fields (same names as your sheet)\n      \"created\": item.created ?? \"\",\n      \"trackingId\": item.trackingId ?? \"\",\n      \"firstName\": item.firstName ?? \"\",\n      \"lastName\": item.lastName ?? \"\",\n      \"pronoun\": item.pronoun ?? \"\",\n      \"versionTag\": item.versionTag ?? \"\",\n      \"headline\": item.headline ?? \"\",\n      \"publicIdentifier\": item.publicIdentifier ?? \"\",\n      \"creator\": item.creator ?? false,\n      \"influencer\": item.influencer ?? false,\n      \"premium\": item.premium ?? false,\n      \"connectionType\": item.connectionType ?? \"\",\n      \"birthDate\": item.birthDate ?? \"\",\n      \"id\": item.id ?? \"\",\n      \"profileId\": item.profileId ?? \"\",\n      \"pictureUrl\": item.pictureUrl ?? \"\",\n      \"coverImageUrl\": item.coverImageUrl ?? \"\",\n      \"countryCode\": item.countryCode ?? \"\",\n      \"geoUrn\": item.geoUrn ?? \"\",\n      \"geoLocationName\": item.geoLocationName ?? \"\",\n      \"geoCountryName\": item.geoCountryName ?? \"\",\n      \"jobTitle\": item.jobTitle ?? \"\",\n      \"positions\": JSON.stringify(item.positions ?? []),\n      \"educations\": JSON.stringify(item.educations ?? []),\n      \"certifications\": JSON.stringify(item.certifications ?? []),\n      \"courses\": JSON.stringify(item.courses ?? []),\n      \"honors\": JSON.stringify(item.honors ?? []),\n      \"languages\": JSON.stringify(item.languages ?? []),\n      \"volunteerExperiences\": JSON.stringify(item.volunteerExperiences ?? []),\n      \"projects\": JSON.stringify(item.projects ?? []),\n      \"publications\": JSON.stringify(item.publications ?? []),\n      \"patents\": JSON.stringify(item.patents ?? []),\n      \"testScores\": JSON.stringify(item.testScores ?? []),\n      \"organizations\": JSON.stringify(item.organizations ?? []),\n      \"volunteerCauses\": JSON.stringify(item.volunteerCauses ?? []),\n      \"companyName\": item.companyName ?? \"\",\n      \"companyPublicId\": item.companyPublicId ?? \"\",\n      \"companyLinkedinUrl\": item.companyLinkedinUrl ?? \"\",\n      \"currentCompany\": JSON.stringify(item.currentCompany ?? {}),\n      \"followerCount\": item.followerCount ?? \"\",\n      \"mutualConnections\": item.mutualConnections ?? \"\",\n      \"isVerified\": item.isVerified ?? false,\n      \"verificationBadge\": JSON.stringify(item.verificationBadge ?? {}),\n      \"availablePremiumFeatures\": JSON.stringify(item.availablePremiumFeatures ?? {}),\n      \"pronunciationUrl\": item.pronunciationUrl ?? \"\",\n      \"connectionsCount\": item.connectionsCount ?? \"\",\n      \"skills\": JSON.stringify(item.skills ?? []),\n      \"inputUrl\": item.inputUrl ?? \"\"\n  };\n  out.push({ json: { __ok: true, ...mapped, \"LinkedIn URL\": sheetUrl } });\n});\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        -176
+      ],
+      "id": "bb17e799-09e1-42f0-8f81-e2c7435dc8d3",
+      "name": "Rename for Google Sheet"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f1",
+              "leftValue": "={{ $json['First name'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f2",
+              "leftValue": "={{ $json['LinkedIn URL'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -1100,
+        -100
+      ],
+      "id": "efe6713c-a20b-456d-a794-1bbd251d592d",
+      "name": "Only rows not yet enriched"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ok",
+              "leftValue": "={{ $json.__ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -260,
+        -100
+      ],
+      "id": "f860fa20-1e3a-47e4-9acf-eac2b6987d33",
+      "name": "IF Profile Found"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration": {
+      "main": [
+        [
+          {
+            "node": "Get profiles to enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get profiles to enrich": {
+      "main": [
+        [
+          {
+            "node": "Only rows not yet enriched",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only rows not yet enriched": {
+      "main": [
+        [
+          {
+            "node": "Loop over profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop over profiles": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Fetch LinkedIn profile (Apify)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn profile (Apify)": {
+      "main": [
+        [
+          {
+            "node": "Rename for Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rename for Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "IF Profile Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Profile Found": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop over profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop over profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

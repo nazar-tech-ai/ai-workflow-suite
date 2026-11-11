@@ -1,0 +1,735 @@
+{
+  "name": "Project 9 – AI Workflow Documentation Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2896,
+        -512
+      ],
+      "id": "104dc4b9-81d1-4f2c-b935-f53dd095887b",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      requirement:\n        $input.first().json.requirement ||\n        \"Build an AI Invoice Approval Workflow\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2704,
+        -512
+      ],
+      "id": "77ce4f64-9795-4e55-bd8e-4412eca5d2b2",
+      "name": "Code (Prepare User Request)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      requirement: $json.requirement,\n\n      payload: {\n        model: \"models/gemini-embedding-001\",\n\n        content: {\n          parts: [\n            {\n              text: $json.requirement\n            }\n          ]\n        }\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2496,
+        -512
+      ],
+      "id": "c6d915db-f7f6-40ff-b017-4ba10ad72067",
+      "name": "Code (Build Gemini Embedding Payload)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2288,
+        -512
+      ],
+      "id": "913f773c-1358-4164-ad35-588eaacd9e10",
+      "name": "HTTP Request Gemini Embedding API1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const vector = $json.embedding?.values;\n\nif (!vector || !Array.isArray(vector)) {\n\tthrow new Error(\"Embedding vector not found.\");\n}\n\nconst requirement = $(\"Code (Build Gemini Embedding Payload)\")\n\t.first()\n\t.json.requirement;\n\nreturn [\n\t{\n\t\tjson: {\n\t\t\trequirement,\n\t\t\tvector,\n\t\t\tvector_dimension: vector.length\n\t\t}\n\t}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2096,
+        -512
+      ],
+      "id": "c0555bcc-ceb1-4efe-b05d-e4d96c173613",
+      "name": "Code (Extract Embedding)1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-CLUSTER-ID.YOUR-REGION.cloud.qdrant.io:6333/collections/workflow-knowledge-basev-2/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"vector\": $json.vector,\n  \"limit\": 5,\n  \"with_payload\": true,\n  \"with_vector\": false\n}\n}}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1888,
+        -512
+      ],
+      "id": "11d17747-d111-4b24-b450-b1e40e3dc2ee",
+      "name": "HTTP Request Qdrant Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Qdrant API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const MIN_SCORE = 0.55; // ignore weak matches instead of consulting the LLM about an unrelated workflow\nconst results = $json.result || [];\nif (!results.length) throw new Error(\"No similar workflow found in Qdrant.\");\n\n// Qdrant returns CHUNKS: pick the best chunk, but never trust a weak one\nconst best = results[0];\nif ((best.score || 0) < MIN_SCORE) {\n  throw new Error(`Best match score ${best.score} is below ${MIN_SCORE}. No relevant workflow in the knowledge base.`);\n}\nconst payload = best.payload || {};\n// Market fields live on every chunk of the workflow after Project 2 runs; fall back to any chunk that has them\nconst withMarket = results.find(r => r.payload && r.payload.workflow_name === payload.workflow_name && r.payload.project_rate != null) || best;\nconst m = withMarket.payload || {};\n\nreturn [{\n  json: {\n    requirement: $(\"Code (Extract Embedding)1\").first().json.requirement,\n    workflow_name: payload.workflow_name || \"\",\n    search_score: best.score || 0,\n    project_rate: m.project_rate ?? 0,\n    business_value: m.business_value ?? 0,\n    difficulty: m.difficulty || \"\",\n    estimated_hours: m.estimated_hours ?? 0,\n    automation_level: m.automation_level || \"\",\n    market_reason: m.market_reason || \"\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        -512
+      ],
+      "id": "76e415e8-dacc-4a90-995b-b3531c940321",
+      "name": "Code (Extract Best Workflow)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({}, $json.payload, { generationConfig: Object.assign({ temperature: 0.2, responseMimeType: \"application/json\" }, $json.payload.generationConfig || {}) }) }}",
+        "options": {
+          "response": {
+            "response": {}
+          },
+          "timeout": 60000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1280,
+        -512
+      ],
+      "id": "26c2b7a1-e3fd-477a-a290-788b27d2e235",
+      "name": "HTTP Request (Gemini 3.5 Flash Lite)",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "maxTries": 5,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Project 9",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Requirement": "={{ $json.requirement }}",
+            "Workflow Name": "={{ $json.workflow_name }}",
+            "Search Score": "={{ $json.search_score }}",
+            "Project Rating": "={{ $json.project_rate }}",
+            "Business Value": "={{ $json.business_value }}",
+            "Difficulty": "={{ $json.difficulty }}",
+            "Estimated Hours": "={{ $json.estimated_hours }}",
+            "Automation Level": "={{ $json.automation_level }}",
+            "Documentation Title": "={{ $json.documentation_title }}",
+            "Executive Summary": "={{ $json.executive_summary }}",
+            "Business Overview": "={{ $json.business_overview }}",
+            "Workflow Architecture": "={{ $json.workflow_architecture }}",
+            "Required Nodes": "={{ $json.required_nodes }}",
+            "Implementation Steps": "={{ $json.implementation_steps }}",
+            "Workflow Logic": "={{ $json.workflow_logic }}",
+            "Integrations": "={{ $json.integrations }}",
+            "Error Handling": "={{ $json.error_handling }}",
+            "Best Practices": "={{ $json.best_practices }}",
+            "Deployment Guide": "={{ $json.deployment_guide }}",
+            "Future Enhancements": "={{ $json.future_enhancements }}",
+            "HTML Document": "={{ $json.html_document }}",
+            "Created At": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Workflow Name",
+              "displayName": "Workflow Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Search Score",
+              "displayName": "Search Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Project Rating",
+              "displayName": "Project Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Value",
+              "displayName": "Business Value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Difficulty",
+              "displayName": "Difficulty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated Hours",
+              "displayName": "Estimated Hours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Automation Level",
+              "displayName": "Automation Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Documentation Title",
+              "displayName": "Documentation Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Executive Summary",
+              "displayName": "Executive Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Overview",
+              "displayName": "Business Overview",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Workflow Architecture",
+              "displayName": "Workflow Architecture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Required Nodes",
+              "displayName": "Required Nodes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Implementation Steps",
+              "displayName": "Implementation Steps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Workflow Logic",
+              "displayName": "Workflow Logic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Integrations",
+              "displayName": "Integrations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Error Handling",
+              "displayName": "Error Handling",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Best Practices",
+              "displayName": "Best Practices",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Deployment Guide",
+              "displayName": "Deployment Guide",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Future Enhancements",
+              "displayName": "Future Enhancements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "HTML Document",
+              "displayName": "HTML Document",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2176,
+        -304
+      ],
+      "id": "67d62a07-6239-47d7-b093-c9cba46d9dfa",
+      "name": "Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prompt = `\nYou are a Senior AI Workflow Documentation Expert.\n\nAnalyze the user's business requirement and the similar workflow retrieved from the knowledge base.\n\nBusiness Requirement:\n${$json.requirement}\n\nWorkflow:\n${$json.workflow_name}\n\nSearch Score:\n${$json.search_score}\n\nProject Rating:\n${$json.project_rate}\n\nBusiness Value:\n${$json.business_value}\n\nDifficulty:\n${$json.difficulty}\n\nEstimated Hours:\n${$json.estimated_hours}\n\nAutomation Level:\n${$json.automation_level}\n\nMarket Insight:\n${$json.market_reason}\n\nCreate professional technical documentation for this workflow.\n\nReturn ONLY valid JSON.\n\n{\n  \"documentation_title\":\"\",\n  \"executive_summary\":\"\",\n  \"business_overview\":\"\",\n  \"workflow_architecture\":\"\",\n  \"required_nodes\":\"\",\n  \"implementation_steps\":\"\",\n  \"workflow_logic\":\"\",\n  \"integrations\":\"\",\n  \"error_handling\":\"\",\n  \"best_practices\":\"\",\n  \"deployment_guide\":\"\",\n  \"future_enhancements\":\"\"\n}\n`;\n\nreturn [\n{\njson:{\npayload:{\ncontents:[\n{\nparts:[\n{\ntext:prompt\n}\n]\n}\n]\n}\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        -512
+      ],
+      "id": "6be9ac33-8426-417f-875b-799a1b2e9d2d",
+      "name": "Code (Build Documentation Prompt)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.candidates?.[0]?.content?.parts?.[0]?.text;\n\nif (!text) {\n  throw new Error(\"Gemini response not found.\");\n}\n\n// Remove markdown if Gemini returns ```json ... ```\nconst _s = text.indexOf(\"{\"), _e = text.lastIndexOf(\"}\");\nconst clean = (_s >= 0 && _e > _s ? text.slice(_s, _e + 1) : text).trim(); // tolerate prose around the JSON\n\nlet documentation;\n\ntry {\n  documentation = JSON.parse(clean);\n} catch (err) {\n  throw new Error(\n    \"Failed to parse Gemini JSON.\\n\\nResponse:\\n\" + clean\n  );\n}\n\n// Get previous workflow data\nconst previous = $(\"Code (Extract Best Workflow)\").first().json;\n\nreturn [\n  {\n    json: {\n      // Workflow Information\n      requirement: previous.requirement,\n      workflow_name: previous.workflow_name,\n      search_score: previous.search_score,\n\n      project_rate: previous.project_rate,\n      business_value: previous.business_value,\n      difficulty: previous.difficulty,\n      estimated_hours: previous.estimated_hours,\n      automation_level: previous.automation_level,\n\n      // Documentation Output\n      documentation_title: documentation.documentation_title || \"\",\n      executive_summary: documentation.executive_summary || \"\",\n      business_overview: documentation.business_overview || \"\",\n      workflow_architecture: documentation.workflow_architecture || \"\",\n      required_nodes: documentation.required_nodes || \"\",\n      implementation_steps: documentation.implementation_steps || \"\",\n      workflow_logic: documentation.workflow_logic || \"\",\n      integrations: documentation.integrations || \"\",\n      error_handling: documentation.error_handling || \"\",\n      best_practices: documentation.best_practices || \"\",\n      deployment_guide: documentation.deployment_guide || \"\",\n      future_enhancements: documentation.future_enhancements || \"\",\n\n      created_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1072,
+        -512
+      ],
+      "id": "9910c7a0-a69f-4823-a97a-700c28c2b53c",
+      "name": "Code (Extract Documentation JSON)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- safe rendering helpers (model output is untrusted: escape before putting it into HTML) ---\nconst esc = (s) => String(s ?? \"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\").replace(/\"/g,\"&quot;\").replace(/'/g,\"&#39;\");\nconst fmt = (v) => {\n  if (Array.isArray(v)) return \"<ul>\" + v.map(x => \"<li>\" + fmt(x) + \"</li>\").join(\"\") + \"</ul>\";\n  if (v && typeof v === \"object\") return \"<ul>\" + Object.entries(v).map(([k,x]) => \"<li><strong>\" + esc(k) + \":</strong> \" + fmt(x) + \"</li>\").join(\"\") + \"</ul>\";\n  return esc(v).replace(/\\n/g,\"<br>\");\n};\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<title>${fmt($json.documentation_title)}</title>\n\n<style>\nbody{\nfont-family:Arial,sans-serif;\nmargin:40px;\nline-height:1.7;\ncolor:#333;\nbackground:#fff;\n}\n\nh1{\ncolor:#0f172a;\nborder-bottom:3px solid #2563eb;\npadding-bottom:10px;\n}\n\nh2{\ncolor:#2563eb;\nmargin-top:35px;\nborder-left:5px solid #2563eb;\npadding-left:10px;\n}\n\n.section{\nmargin-bottom:25px;\n}\n\n.footer{\nmargin-top:50px;\nfont-size:12px;\ncolor:#666;\nborder-top:1px solid #ddd;\npadding-top:15px;\ntext-align:center;\n}\n</style>\n\n</head>\n\n<body>\n\n<h1>${fmt($json.documentation_title)}</h1>\n\n<div class=\"section\">\n<h2>Executive Summary</h2>\n<p>${fmt($json.executive_summary)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Business Overview</h2>\n<p>${fmt($json.business_overview)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Workflow Architecture</h2>\n<p>${fmt($json.workflow_architecture)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Required Nodes</h2>\n<p>${fmt($json.required_nodes)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Implementation Steps</h2>\n<p>${fmt($json.implementation_steps)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Workflow Logic</h2>\n<p>${fmt($json.workflow_logic)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Integrations</h2>\n<p>${fmt($json.integrations)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Error Handling</h2>\n<p>${fmt($json.error_handling)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Best Practices</h2>\n<p>${fmt($json.best_practices)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Deployment Guide</h2>\n<p>${fmt($json.deployment_guide)}</p>\n</div>\n\n<div class=\"section\">\n<h2>Future Enhancements</h2>\n<p>${fmt($json.future_enhancements)}</p>\n</div>\n\n<div class=\"footer\">\nGenerated automatically by AI Workflow Documentation Generator\n</div>\n\n</body>\n</html>\n`;\n\nreturn [\n{\njson:{\n...$json,\nhtml_document: html\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        -512
+      ],
+      "id": "c46e0193-0806-4fee-b6ca-f3ef0c2df830",
+      "name": "Code (Generate HTML)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get HTML from previous node\nconst html = $json.html_document;\n\nif (!html) {\n  throw new Error(\"html_document field not found.\");\n}\n\n// Convert HTML to Base64\nconst base64Data = Buffer.from(html, \"utf8\").toString(\"base64\");\n\n// Return JSON + Binary\nreturn [\n  {\n    json: {\n      ...$json\n    },\n    binary: {\n      files: {\n        data: base64Data,\n        mimeType: \"text/html\",\n        fileName: \"index.html\"\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2880,
+        -304
+      ],
+      "id": "a3b9edaa-f09e-45ff-8714-73993c4b55cc",
+      "name": "Code (Create HTML File)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "index.html",
+              "inputDataFieldName": "files"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdf"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2656,
+        -304
+      ],
+      "id": "db5dccc1-16ab-4ead-93f7-f67aaa534488",
+      "name": "HTTP Request (Gotenberg)"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "pdf",
+        "name": "={{ String($json.documentation_title || \"documentation\").replace(/[\\\\/:*?\"<>|]/g, \"-\") }}.pdf",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": ""
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "root",
+          "mode": "list",
+          "cachedResultName": "/ (Root folder)",
+          "cachedResultUrl": ""
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2448,
+        -304
+      ],
+      "id": "7827ccb1-5735-4598-8ed5-0a7f132b7ab7",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "",
+          "name": "Google Drive account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code (Prepare User Request)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Prepare User Request)": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Gemini Embedding Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Gemini Embedding Payload)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Gemini Embedding API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Gemini Embedding API1": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Embedding)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Embedding)1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Qdrant Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Qdrant Search": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Best Workflow)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Best Workflow)": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Documentation Prompt)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Documentation Prompt)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Gemini 3.5 Flash Lite)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Gemini 3.5 Flash Lite)": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Documentation JSON)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Documentation JSON)": {
+      "main": [
+        [
+          {
+            "node": "Code (Generate HTML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Generate HTML)": {
+      "main": [
+        [
+          {
+            "node": "Code (Create HTML File)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets1": {
+      "main": [
+        []
+      ]
+    },
+    "Code (Create HTML File)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Gotenberg)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Gotenberg)": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

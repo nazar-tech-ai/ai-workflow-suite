@@ -1,0 +1,533 @@
+{
+  "name": "Project 11 — AI Workflow Recommendation Engine",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        -224
+      ],
+      "id": "7736e0ac-740e-4c23-a277-779adec09f9d",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      requirement:\n        $input.first().json.requirement ||\n        \"Build an AI Invoice Approval Workflow\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -224
+      ],
+      "id": "35f4c0b3-82fd-4150-a811-1f38d6d4ca64",
+      "name": "Code (Prepare User Request)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      requirement: $json.requirement,\n\n      payload: {\n        model: \"models/gemini-embedding-001\",\n\n        content: {\n          parts: [\n            {\n              text: $json.requirement\n            }\n          ]\n        }\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        -224
+      ],
+      "id": "476725fa-235c-4404-a9d0-c0959706fffe",
+      "name": "Code (Build Gemini Embedding Payload)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        -224
+      ],
+      "id": "192a4cb3-193a-44da-866e-25aa449fe652",
+      "name": "HTTP Request Gemini Embedding API1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const vector = $json.embedding?.values;\n\nif (!vector || !Array.isArray(vector)) {\n\tthrow new Error(\"Embedding vector not found.\");\n}\n\nconst requirement = $(\"Code (Build Gemini Embedding Payload)\")\n\t.first()\n\t.json.requirement;\n\nreturn [\n\t{\n\t\tjson: {\n\t\t\trequirement,\n\t\t\tvector,\n\t\t\tvector_dimension: vector.length\n\t\t}\n\t}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        -224
+      ],
+      "id": "1c31fbf1-f227-4029-bb85-e8ce57bce2e5",
+      "name": "Code (Extract Embedding)1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-CLUSTER-ID.YOUR-REGION.cloud.qdrant.io:6333/collections/workflow-knowledge-basev-2/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"vector\": $json.vector,\n  \"limit\": 30,\n  \"with_payload\": true,\n  \"with_vector\": false\n}\n}}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        320,
+        -224
+      ],
+      "id": "674679f5-c0ad-45d3-948f-4d64b3a5e1ee",
+      "name": "HTTP Request Qdrant Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Qdrant API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({}, $json.payload, { generationConfig: Object.assign({ temperature: 0.2, responseMimeType: \"application/json\" }, $json.payload.generationConfig || {}) }) }}",
+        "options": {
+          "response": {
+            "response": {}
+          },
+          "timeout": 60000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        944,
+        -224
+      ],
+      "id": "eb57881c-7747-4b79-9f31-33f993a25f75",
+      "name": "HTTP Request (Gemini 3.5 Flash Lite)",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "maxTries": 5,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Project 11",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Requirement": "={{ $json.requirement }}",
+            "Recommended Workflow": "={{ $json.recommended_workflow }}",
+            "Recommendation Title": "={{ $json.recommendation_title }}",
+            "Business Requirement Analysis": "={{ $json.business_requirement_analysis }}",
+            "Recommendation Reason": "={{ $json.recommendation_reason }}",
+            "Alternative Workflows": "={{ $json.alternative_workflows }}",
+            "Comparison Summary": "={{ $json.comparison_summary }}",
+            "Business Benefits": "={{ $json.business_benefits }}",
+            "Estimated ROI": "={{ $json.estimated_roi }}",
+            "Implementation Priority": "={{ $json.implementation_priority }}",
+            "Confidence Score": "={{ $json.confidence_score }}",
+            "Final Recommendation": "={{ $json.final_recommendation }}",
+            "Best Search Score": "={{ $json.best_search_score }}",
+            "Search Status": "={{ $json.search_status }}",
+            "Created At": "={{ $json.created_at }}",
+            "Total Matches": "={{ $json.total_matches }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommended Workflow",
+              "displayName": "Recommended Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation Title",
+              "displayName": "Recommendation Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Requirement Analysis",
+              "displayName": "Business Requirement Analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation Reason",
+              "displayName": "Recommendation Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Alternative Workflows",
+              "displayName": "Alternative Workflows",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Comparison Summary",
+              "displayName": "Comparison Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Benefits",
+              "displayName": "Business Benefits",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated ROI",
+              "displayName": "Estimated ROI",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Implementation Priority",
+              "displayName": "Implementation Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence Score",
+              "displayName": "Confidence Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Best Search Score",
+              "displayName": "Best Search Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Search Status",
+              "displayName": "Search Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total Matches",
+              "displayName": "Total Matches",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Final Recommendation",
+              "displayName": "Final Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1376,
+        -224
+      ],
+      "id": "2a082ba6-11d2-44c7-a6be-d5bd093202a8",
+      "name": "Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate Qdrant response\nif (\n\t!$json.result ||\n\t!Array.isArray($json.result) ||\n\t$json.result.length === 0\n) {\n\tthrow new Error(\"No workflows found in Qdrant.\");\n}\n\n// Qdrant returns chunks: collapse to one row per workflow and borrow market data from any chunk that has it\nconst _all = $json.result || [];\nconst _market = {};\nfor (const r of _all) { const p = r.payload || {}; if (p.workflow_name && p.project_rate != null && !_market[p.workflow_name]) _market[p.workflow_name] = p; }\nconst _seen = new Set();\nconst _unique = _all.filter(r => { const n = (r.payload || {}).workflow_name || (r.payload || {}).project_name; if (!n || _seen.has(n)) return false; _seen.add(n); return true; })\n  .map(r => ({ ...r, payload: { ..._market[(r.payload || {}).workflow_name], ...(r.payload || {}) , ...Object.fromEntries(Object.entries(_market[(r.payload || {}).workflow_name] || {}).filter(([k]) => [\"project_rate\",\"business_value\",\"difficulty\",\"estimated_hours\",\"automation_level\",\"market_reason\",\"workflow_description\",\"technologies\",\"integrations\",\"use_cases\"].includes(k))) } }));\n\n// Get requirement from previous node\nconst requirement = $(\"Code (Extract Embedding)1\").first().json.requirement;\n\n// Build Top 5 Workflows\nconst workflows = _unique.slice(0, 5).map((item, index) => {\n\n\tconst payload = item.payload || {};\n\n\treturn {\n\n\t\trank: index + 1,\n\n\t\tworkflow_name: payload.workflow_name || \"\",\n\n\t\tsearch_score: Number(item.score || 0),\n\n\t\tproject_rate: payload.project_rate || 0,\n\n\t\tbusiness_value: payload.business_value || 0,\n\n\t\tdifficulty: payload.difficulty || \"\",\n\n\t\testimated_hours: payload.estimated_hours || 0,\n\n\t\tautomation_level: payload.automation_level || \"\",\n\n\t\tmarket_reason: payload.market_reason || \"\",\n\n\t\tworkflow_description: payload.workflow_description || \"\",\n\n\t\tworkflow_category: payload.workflow_category || \"\",\n\n\t\ttechnologies: payload.technologies || \"\",\n\n\t\tintegrations: payload.integrations || \"\",\n\n\t\tuse_cases: payload.use_cases || \"\"\n\n\t};\n\n});\n\n// Highest Search Score\nconst bestSearchScore =\n\tworkflows.length > 0\n\t\t? workflows[0].search_score\n\t\t: 0;\n\n// Search Status\nconst searchStatus =\n\tbestSearchScore >= 0.65\n\t\t? \"High Confidence Match\"\n\t\t: \"Low Confidence Match\";\n\n// Final Output\nreturn [\n\t{\n\t\tjson: {\n\n\t\t\trequirement,\n\n\t\t\tbest_search_score: bestSearchScore,\n\n\t\t\tsearch_status: searchStatus,\n\n\t\t\ttotal_matches: workflows.length,\n\n\t\t\tworkflows\n\n\t\t}\n\t}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -224
+      ],
+      "id": "321bdca3-8145-4a18-8302-427393af4631",
+      "name": "Code (Extract Top 5 Workflows)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const workflows = $json.workflows || [];\n\nconst prompt = `\nYou are a Senior AI Workflow Recommendation Expert.\n\nYour task is to analyze the user's business requirement and compare the Top 5 workflows retrieved from the AI Workflow Knowledge Base.\n\nBusiness Requirement:\n\n${$json.requirement}\n\nSearch Status:\n${$json.search_status}\n\nBest Search Score:\n${$json.best_search_score}\n\nTop 5 Matching Workflows:\n\n${JSON.stringify(workflows, null, 2)}\n\nInstructions:\n\n1. Carefully analyze the user's business requirement.\n2. Compare all five workflows.\n3. Recommend ONLY ONE best workflow.\n4. Explain why it is the best choice.\n5. Suggest alternative workflows if applicable.\n6. Summarize the comparison.\n7. Describe expected business benefits.\n8. Estimate ROI.\n9. Suggest implementation priority (High, Medium, or Low).\n10. If Search Status is \"Low Confidence Match\", clearly mention that no strong workflow was found in the knowledge base and that the recommendation is based on the closest available matches.\n11. Confidence Score Rules:\n   - If Best Search Score >= 0.90 → \"Very High Confidence\"\n   - If Best Search Score >= 0.75 → \"High Confidence\"\n   - If Best Search Score >= 0.60 → \"Medium Confidence\"\n   - Otherwise → \"Low Confidence\"\n12. Use the Best Search Score as the Search Score in the response.\n13. Return ONLY valid JSON.\n14. Do not include markdown, explanations, comments, or code fences.\n\nReturn this exact JSON structure:\n\n{\n  \"recommendation_title\": \"\",\n  \"business_requirement_analysis\": \"\",\n  \"recommended_workflow\": \"\",\n  \"recommendation_reason\": \"\",\n  \"alternative_workflows\": \"\",\n  \"comparison_summary\": \"\",\n  \"business_benefits\": \"\",\n  \"estimated_roi\": \"\",\n  \"implementation_priority\": \"\",\n  \"confidence_score\": \"\",\n  \"search_score\": \"\",\n  \"final_recommendation\": \"\"\n}\n`;\n\nreturn [\n  {\n    json: {\n\n      requirement: $json.requirement,\n\n      best_search_score: $json.best_search_score,\n\n      search_status: $json.search_status,\n\n      total_matches: $json.total_matches,\n\n      workflows: workflows,\n\n      payload: {\n        contents: [\n          {\n            parts: [\n              {\n                text: prompt\n              }\n            ]\n          }\n        ]\n      }\n\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -224
+      ],
+      "id": "5b2879f2-60ed-4aa6-a785-8dae82f0b273",
+      "name": "Code (Build Recommendation Prompt)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get Gemini response\nconst text = $json.candidates?.[0]?.content?.parts?.[0]?.text;\n\nif (!text) {\n\tthrow new Error(\"Gemini response not found.\");\n}\n\n// Clean response\nconst clean = text\n\t.replace(/```json/gi, \"\")\n\t.replace(/```/g, \"\")\n\t.trim();\n\n// Parse JSON\nlet recommendation;\n\ntry {\n\trecommendation = JSON.parse(clean);\n} catch (err) {\n\tthrow new Error(\"Invalid Gemini JSON:\\n\\n\" + clean);\n}\n\n// Get previous node output\nconst previous = $(\"Code (Extract Top 5 Workflows)\").first().json;\n\n// Return final data\nreturn [\n\t{\n\t\tjson: {\n\t\t\trequirement: previous.requirement || \"\",\n\n\t\t\trecommended_workflow:\n\t\t\t\trecommendation.recommended_workflow || \"\",\n\n\t\t\trecommendation_title:\n\t\t\t\trecommendation.recommendation_title || \"\",\n\n\t\t\tbusiness_requirement_analysis:\n\t\t\t\trecommendation.business_requirement_analysis || \"\",\n\n\t\t\trecommendation_reason:\n\t\t\t\trecommendation.recommendation_reason || \"\",\n\n\t\t\talternative_workflows:\n\t\t\t\trecommendation.alternative_workflows || \"\",\n\n\t\t\tcomparison_summary:\n\t\t\t\trecommendation.comparison_summary || \"\",\n\n\t\t\tbusiness_benefits:\n\t\t\t\trecommendation.business_benefits || \"\",\n\n\t\t\testimated_roi:\n\t\t\t\trecommendation.estimated_roi || \"\",\n\n\t\t\timplementation_priority:\n\t\t\t\trecommendation.implementation_priority || \"\",\n\n\t\t\tconfidence_score:\n\t\t\t\trecommendation.confidence_score || \"\",\n\n\t\t\tsearch_score:\n\t\t\t\trecommendation.search_score || previous.best_search_score,\n\n\t\t\tfinal_recommendation:\n\t\t\t\trecommendation.final_recommendation || \"\",\n\n\t\t\tbest_search_score:\n\t\t\t\tprevious.best_search_score ?? 0,\n\n\t\t\tsearch_status:\n\t\t\t\tprevious.search_status ??\n\t\t\t\t(\n\t\t\t\t\t(previous.best_search_score ?? 0) >= 0.65\n\t\t\t\t\t\t? \"High Confidence Match\"\n\t\t\t\t\t\t: \"Low Confidence Match\"\n\t\t\t\t),\n\n\t\t\ttotal_matches:\n\t\t\t\tprevious.total_matches ?? 0,\n\n\t\t\tcreated_at:\n\t\t\t\tnew Date().toISOString()\n\t\t}\n\t}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -224
+      ],
+      "id": "ca2e38d7-7e2e-4bff-9e4e-99dd8912469f",
+      "name": "Code (Extract Recommendation JSON)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code (Prepare User Request)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Prepare User Request)": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Gemini Embedding Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Gemini Embedding Payload)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Gemini Embedding API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Gemini Embedding API1": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Embedding)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Embedding)1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Qdrant Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Qdrant Search": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Top 5 Workflows)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Gemini 3.5 Flash Lite)": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Recommendation JSON)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Top 5 Workflows)": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Recommendation Prompt)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Recommendation JSON)": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Recommendation Prompt)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Gemini 3.5 Flash Lite)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

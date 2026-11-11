@@ -1,0 +1,580 @@
+{
+  "name": "Project 4: AI Proposal Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        -208
+      ],
+      "id": "05624a9d-0685-45d6-a139-50ea641a7074",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      requirement:\n        $input.first().json.requirement ||\n        \"Build an AI Invoice Approval Workflow\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        -208
+      ],
+      "id": "768a7d3f-fd1f-4e79-985f-e4a787267b12",
+      "name": "Code (Prepare User Request)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      requirement: $json.requirement,\n\n      payload: {\n        model: \"models/gemini-embedding-001\",\n\n        content: {\n          parts: [\n            {\n              text: $json.requirement\n            }\n          ]\n        }\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        -208
+      ],
+      "id": "e8ebae77-9648-4fd7-968c-f9aeb0de3f2c",
+      "name": "Code (Build Gemini Embedding Payload)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prompt = `\nYou are a Senior AI Solutions Consultant.\n\nCreate a professional client proposal based on the workflow details below.\n\nClient Requirement:\n${$json.requirement}\n\nMost Similar Workflow:\n${$json.workflow_name}\n\nWorkflow Analysis\n\nSearch Score:\n${$json.search_score}\n\nProject Rating:\n${$json.project_rate}\n\nBusiness Value:\n${$json.business_value}\n\nDifficulty:\n${$json.difficulty}\n\nEstimated Development Hours:\n${$json.estimated_hours}\n\nAutomation Level:\n${$json.automation_level}\n\nMarket Insight:\n${$json.market_reason}\n\nGenerate a professional proposal.\n\nReturn ONLY valid JSON.\n\n{\n  \"proposal_title\":\"\",\n  \"project_summary\":\"\",\n  \"scope_of_work\":\"\",\n  \"deliverables\":\"\",\n  \"timeline\":\"\",\n  \"pricing\":\"\",\n  \"technologies\":\"\",\n  \"assumptions\":\"\",\n  \"next_steps\":\"\"\n}\n`;\n\nreturn [\n  {\n    json: {\n      payload: {\n        contents: [\n          {\n            parts: [\n              {\n                text: prompt\n              }\n            ]\n          }\n        ]\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -208
+      ],
+      "id": "7ae83562-0d07-4db0-b4e6-1a281f22816f",
+      "name": "Code (Build Proposal Prompt)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.candidates?.[0]?.content?.parts?.[0]?.text;\n\nif (!text) {\n  throw new Error(\"Gemini response not found.\");\n}\n\n// Remove markdown if Gemini returns ```json ... ```\nconst _s = text.indexOf(\"{\"), _e = text.lastIndexOf(\"}\");\nconst clean = (_s >= 0 && _e > _s ? text.slice(_s, _e + 1) : text).trim(); // tolerate prose around the JSON\n\nlet proposal;\n\ntry {\n  proposal = JSON.parse(clean);\n} catch (err) {\n  throw new Error(\n    \"Failed to parse Gemini JSON.\\n\\nResponse:\\n\" + clean\n  );\n}\n\n// Get previous workflow data\nconst previous = $(\"Code (Extract Top Workflow)1\").first().json;\n\nreturn [\n  {\n    json: {\n      requirement: previous.requirement,\n      workflow_name: previous.workflow_name,\n      search_score: previous.search_score,\n\n      project_rate: previous.project_rate,\n      business_value: previous.business_value,\n      difficulty: previous.difficulty,\n      estimated_hours: previous.estimated_hours,\n      automation_level: previous.automation_level,\n\n      proposal_title: proposal.proposal_title,\n      project_summary: proposal.project_summary,\n      scope_of_work: proposal.scope_of_work,\n      deliverables: proposal.deliverables,\n      timeline: proposal.timeline,\n      pricing: proposal.pricing,\n      technologies: proposal.technologies,\n      assumptions: proposal.assumptions,\n      next_steps: proposal.next_steps,\n\n      created_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -208
+      ],
+      "id": "6f599202-b5cb-4570-8974-02d499fdb92f",
+      "name": "Code (Extract Proposal JSON)"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet2",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Requirement": "={{ $json.requirement }}",
+            "Workflow Name": "={{ $json.workflow_name }}",
+            "Search Score": "={{ $json.search_score }}",
+            "Scope of Work": "={{ $json.scope_of_work }}",
+            "Project Summary": "={{ $json.project_summary }}",
+            "Proposal Title": "={{ $json.proposal_title }}",
+            "Deliverables": "={{ $json.deliverables }}",
+            "Timeline": "={{ $json.timeline }}",
+            "Pricing": "={{ $json.pricing }}",
+            "Technologies": "={{ $json.technologies }}",
+            "Assumptions": "={{ $json.assumptions }}",
+            "Next Steps": "={{ $json.next_steps }}",
+            "Created At": "={{ $json.created_at }}",
+            "Project Rating": "={{ $json.project_rate }}",
+            "Business Value": "={{ $json.business_value }}",
+            "Difficulty": "={{ $json.difficulty }}",
+            "Estimated Hours": "={{ $json.estimated_hours }}",
+            "Automation Level": "={{ $json.automation_level }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Workflow Name",
+              "displayName": "Workflow Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Search Score",
+              "displayName": "Search Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Project Rating",
+              "displayName": "Project Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Business Value",
+              "displayName": "Business Value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Difficulty",
+              "displayName": "Difficulty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Estimated Hours",
+              "displayName": "Estimated Hours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Automation Level",
+              "displayName": "Automation Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Proposal Title",
+              "displayName": "Proposal Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Project Summary",
+              "displayName": "Project Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Scope of Work",
+              "displayName": "Scope of Work",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Deliverables",
+              "displayName": "Deliverables",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pricing",
+              "displayName": "Pricing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Technologies",
+              "displayName": "Technologies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Assumptions",
+              "displayName": "Assumptions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next Steps",
+              "displayName": "Next Steps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        -208
+      ],
+      "id": "5e679159-b407-4ebd-9959-60b949704c74",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -304,
+        -208
+      ],
+      "id": "e5629a00-b40b-4d1e-ac08-05b0b8f41e8f",
+      "name": "HTTP Request Gemini Embedding API1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const vector = $json.embedding?.values;\n\nif (!vector || !Array.isArray(vector)) {\n\tthrow new Error(\"Embedding vector not found.\");\n}\n\nconst requirement = $(\"Code (Build Gemini Embedding Payload)\")\n\t.first()\n\t.json.requirement;\n\nreturn [\n\t{\n\t\tjson: {\n\t\t\trequirement,\n\t\t\tvector,\n\t\t\tvector_dimension: vector.length\n\t\t}\n\t}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -208
+      ],
+      "id": "c5244704-f197-487a-a72e-ebc3b236de3f",
+      "name": "Code (Extract Embedding)1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-CLUSTER-ID.YOUR-REGION.cloud.qdrant.io:6333/collections/workflow-knowledge-basev-2/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"vector\": $json.vector,\n  \"limit\": 5,\n  \"with_payload\": true,\n  \"with_vector\": false\n}\n}}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        96,
+        -208
+      ],
+      "id": "5b7fc630-e434-4448-958d-d26044074124",
+      "name": "HTTP Request Qdrant Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Qdrant API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const MIN_SCORE = 0.55; // ignore weak matches instead of consulting the LLM about an unrelated workflow\nconst results = $json.result || [];\nif (!results.length) throw new Error(\"No similar workflow found in Qdrant.\");\n\n// Qdrant returns CHUNKS: pick the best chunk, but never trust a weak one\nconst best = results[0];\nif ((best.score || 0) < MIN_SCORE) {\n  throw new Error(`Best match score ${best.score} is below ${MIN_SCORE}. No relevant workflow in the knowledge base.`);\n}\nconst payload = best.payload || {};\n// Market fields live on every chunk of the workflow after Project 2 runs; fall back to any chunk that has them\nconst withMarket = results.find(r => r.payload && r.payload.workflow_name === payload.workflow_name && r.payload.project_rate != null) || best;\nconst m = withMarket.payload || {};\n\nreturn [{\n  json: {\n    requirement: $(\"Code (Extract Embedding)1\").first().json.requirement,\n    workflow_name: payload.workflow_name || \"\",\n    search_score: best.score || 0,\n    project_rate: m.project_rate ?? 0,\n    business_value: m.business_value ?? 0,\n    difficulty: m.difficulty || \"\",\n    estimated_hours: m.estimated_hours ?? 0,\n    automation_level: m.automation_level || \"\",\n    market_reason: m.market_reason || \"\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -208
+      ],
+      "id": "e403c721-c822-4b7b-aac8-a3014e349a0b",
+      "name": "Code (Extract Top Workflow)1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({}, $json.payload, { generationConfig: Object.assign({ temperature: 0.2, responseMimeType: \"application/json\" }, $json.payload.generationConfig || {}) }) }}",
+        "options": {
+          "response": {
+            "response": {}
+          },
+          "timeout": 60000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        -208
+      ],
+      "id": "88b1cc59-a007-4f17-930c-d19380bc5e3d",
+      "name": "HTTP Request (Gemini)",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "maxTries": 5,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const BRAND = \"Your Company Name\"; // shown in the proposal header/footer\nconst d = $json;\n// --- safe rendering helpers (model output is untrusted: escape before putting it into HTML) ---\nconst esc = (s) => String(s ?? \"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\").replace(/\"/g,\"&quot;\").replace(/'/g,\"&#39;\");\nconst fmt = (v) => {\n  if (Array.isArray(v)) return \"<ul>\" + v.map(x => \"<li>\" + fmt(x) + \"</li>\").join(\"\") + \"</ul>\";\n  if (v && typeof v === \"object\") return \"<ul>\" + Object.entries(v).map(([k,x]) => \"<li><strong>\" + esc(k) + \":</strong> \" + fmt(x) + \"</li>\").join(\"\") + \"</ul>\";\n  return esc(v).replace(/\\n/g,\"<br>\");\n};\n\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n\n<style>\n\nbody{\nfont-family:Arial,sans-serif;\nmargin:40px;\ncolor:#333;\nline-height:1.7;\n}\n\n.header{\ntext-align:center;\nmargin-bottom:40px;\n}\n\n.header h1{\ncolor:#0F62FE;\nmargin:0;\n}\n\n.header h2{\nmargin:5px 0;\n}\n\n.section{\nmargin-top:30px;\n}\n\n.section h3{\nbackground:#0F62FE;\ncolor:white;\npadding:8px;\nborder-radius:4px;\n}\n\ntable{\nwidth:100%;\nborder-collapse:collapse;\nmargin-top:10px;\n}\n\ntable,th,td{\nborder:1px solid #ddd;\n}\n\nth{\nbackground:#0F62FE;\ncolor:white;\n}\n\nth,td{\npadding:10px;\ntext-align:left;\n}\n\n.footer{\nmargin-top:60px;\ntext-align:center;\nfont-size:12px;\ncolor:#777;\n}\n\n</style>\n\n</head>\n\n<body>\n\n<div class=\"header\">\n\n<h1>${esc(BRAND)}</h1>\n\n<h2>${fmt(d.proposal_title)}</h2>\n\n<p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Client Requirement</h3>\n\n<p>${fmt(d.requirement)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Project Summary</h3>\n\n<p>${fmt(d.project_summary)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Workflow Information</h3>\n\n<table>\n\n<tr>\n<th>Workflow</th>\n<td>${fmt(d.workflow_name)}</td>\n</tr>\n\n<tr>\n<th>Difficulty</th>\n<td>${fmt(d.difficulty)}</td>\n</tr>\n\n<tr>\n<th>Estimated Hours</th>\n<td>${fmt(d.estimated_hours)}</td>\n</tr>\n\n<tr>\n<th>Automation Level</th>\n<td>${fmt(d.automation_level)}</td>\n</tr>\n\n<tr>\n<th>Business Value</th>\n<td>${fmt(d.business_value)}</td>\n</tr>\n\n<tr>\n<th>Search Score</th>\n<td>${fmt(d.search_score)}</td>\n</tr>\n\n</table>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Scope of Work</h3>\n\n<p>${fmt(d.scope_of_work)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Deliverables</h3>\n\n<p>${fmt(d.deliverables)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Timeline</h3>\n\n<p>${fmt(d.timeline)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Pricing</h3>\n\n<p>${fmt(d.pricing)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Technology Stack</h3>\n\n<p>${fmt(d.technologies)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Assumptions</h3>\n\n<p>${fmt(d.assumptions)}</p>\n\n</div>\n\n<div class=\"section\">\n\n<h3>Next Steps</h3>\n\n<p>${fmt(d.next_steps)}</p>\n\n</div>\n\n<div class=\"footer\">\n\n<hr>\n\n<p><strong>Prepared By</strong></p>\n\n<p>${esc(BRAND)}</p>\n\n<p>AI Automation | AI Agents | Workflow Automation</p>\n\n</div>\n\n</body>\n\n</html>\n`;\n\nreturn [\n  {\n    json: {\n      ...d,\n      html\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        1264
+      ],
+      "id": "1ecdeeca-b48f-4c88-ac5a-8f5227c9423e",
+      "name": "Code (Generate HTML)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code (Prepare User Request)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Prepare User Request)": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Gemini Embedding Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Gemini Embedding Payload)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Gemini Embedding API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Build Proposal Prompt)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Proposal JSON)": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code (Generate HTML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Gemini Embedding API1": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Embedding)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Embedding)1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Qdrant Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Qdrant Search": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Top Workflow)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Extract Top Workflow)1": {
+      "main": [
+        [
+          {
+            "node": "Code (Build Proposal Prompt)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Code (Extract Proposal JSON)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
