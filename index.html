@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Workflow Intelligence Suite | n8n + Gemini + Qdrant</title>
+<meta name="description" content="14 n8n workflows that turn automation PDFs into a searchable knowledge base (Qdrant + Gemini) and generate estimates, proposals and consulting reports.">
+<style>
+  :root{--bg:#f6f7fb;--card:#fff;--ink:#0f172a;--muted:#5b6478;--brand:#1d4ed8;--line:#e3e7f0}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  header{background:#fff;border-bottom:1px solid var(--line)}
+  nav{display:flex;justify-content:space-between;align-items:center;height:72px}
+  .logo{font-weight:800;font-size:1.25rem}.logo span{color:var(--brand)}
+  .btn{display:inline-block;background:var(--brand);color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600}
+  .btn.alt{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  .hero{padding:72px 0 40px}
+  .tag{display:inline-block;background:#e8eefc;color:var(--brand);font-weight:600;font-size:.8rem;padding:4px 12px;border-radius:999px}
+  h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.15;margin:16px 0}
+  .lead{color:var(--muted);font-size:1.1rem;max-width:720px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+  section{padding:40px 0}
+  h2{font-size:1.8rem;margin:0 0 8px}
+  .sub{color:var(--muted);margin:0 0 24px}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .step b{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;margin-bottom:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .wf{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .wf small{color:var(--brand);font-weight:700}
+  .wf h3{margin:4px 0;font-size:1.02rem}
+  .wf p{margin:0;color:var(--muted);font-size:.92rem}
+  footer{border-top:1px solid var(--line);background:#fff;padding:28px 0;color:var(--muted);text-align:center;margin-top:40px}
+  footer a{color:var(--brand)}
+</style>
+</head>
+<body>
+<header><div class="wrap"><nav>
+  <div class="logo">Nazar<span>Tech</span> AI</div>
+  <a class="btn" href="https://github.com/nazar-tech-ai/ai-workflow-suite">View on GitHub</a>
+</nav></div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="tag">n8n · Gemini · Qdrant</span>
+    <h1>AI Workflow Intelligence Suite</h1>
+    <p class="lead">A collection of n8n workflows that turn a library of automation-workflow PDFs into a searchable knowledge base, then build business tools on top: market scoring, cost estimates, proposals, consulting reports, documentation, monitoring and more.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/nazar-tech-ai/ai-workflow-suite">View source</a>
+      <a class="btn alt" href="https://nazar-abbas.vercel.app/">Back to portfolio</a>
+    </div>
+  </div>
+
+  <section>
+    <h2>How it works</h2>
+    <p class="sub">Describe a business need, get a ready-to-use deliverable.</p>
+    <div class="steps">
+      <div class="step"><b>1</b><br>You describe a need, e.g. "Build an AI invoice approval workflow".</div>
+      <div class="step"><b>2</b><br>The suite finds the closest workflow in the Qdrant knowledge base.</div>
+      <div class="step"><b>3</b><br>Gemini produces an estimate, proposal, consultation or optimisation plan.</div>
+      <div class="step"><b>4</b><br>The result is stored in Google Sheets / PDF.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The workflows</h2>
+    <p class="sub">14 importable n8n workflow files in the <code>workflows/</code> folder.</p>
+    <div class="grid">
+      <div class="wf"><small>01</small><h3>Knowledge Base Ingestion</h3><p>Embeds workflow PDFs into Qdrant.</p></div>
+      <div class="wf"><small>02</small><h3>Market Intelligence Engine</h3><p>Scores automation opportunities.</p></div>
+      <div class="wf"><small>03</small><h3>Workflow Cost Estimator</h3><p>Estimates build cost and effort.</p></div>
+      <div class="wf"><small>04</small><h3>Proposal Generator</h3><p>Drafts client proposals.</p></div>
+      <div class="wf"><small>05</small><h3>Workflow Generator</h3><p>Generates new workflow designs.</p></div>
+      <div class="wf"><small>06</small><h3>Workflow Consultant</h3><p>Advisory reports for a business need.</p></div>
+      <div class="wf"><small>07</small><h3>Workflow Optimizer</h3><p>Suggests improvements to existing flows.</p></div>
+      <div class="wf"><small>08</small><h3>Workflow Validator</h3><p>Checks workflows for issues.</p></div>
+      <div class="wf"><small>09</small><h3>Documentation Generator</h3><p>Writes docs for a workflow.</p></div>
+      <div class="wf"><small>10</small><h3>Deployment Assistant</h3><p>Guides deployment steps.</p></div>
+      <div class="wf"><small>11</small><h3>Recommendation Engine</h3><p>Recommends the best-fit workflow.</p></div>
+      <div class="wf"><small>13</small><h3>Monitoring &amp; Analytics</h3><p>Tracks usage and performance.</p></div>
+      <div class="wf"><small>14</small><h3>Workflow Consultant Agent</h3><p>Agent-style conversational consultant.</p></div>
+      <div class="wf"><small>21</small><h3>LinkedIn Profile Enrichment</h3><p>Enriches lead profiles.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Use it</h2>
+    <p class="sub">Clone the repo, import the JSON files from <code>workflows/</code> into n8n, add your own credentials (Gemini, Qdrant, Google Sheets) and run them in order.</p>
+    <a class="btn" href="https://github.com/nazar-tech-ai/ai-workflow-suite#readme">Read the README</a>
+  </section>
+</main>
+
+<footer><div class="wrap">Built by <a href="https://nazar-abbas.vercel.app/">Nazar Abbas</a> · MIT License</div></footer>
+</body>
+</html>
